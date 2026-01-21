@@ -1,0 +1,39 @@
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+build/
+dist/
+
+# Database (Real Persistence - Article III)
+database.sqlite
+database.sqlite-journal
+
+# Environment Variables (Security - Article I)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# --- PROTOCOLO GÊNESE v3.1 (STEALTH MODE) ---
+# Impede o vazamento das diretrizes da IA e estrutura do gerador
+PROTOCOLO_GENESE.md
+metadata.json
+*.ai_log
+*.context
