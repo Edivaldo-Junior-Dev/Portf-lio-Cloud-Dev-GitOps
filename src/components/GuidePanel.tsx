@@ -250,7 +250,7 @@ const GuidePanel: React.FC<GuidePanelProps> = ({ members, proposals }) => {
           </div>
         )}
 
-        {/* SECTION 3: ROADMAP DEVOPS & GITHUB (NOVO) */}
+        {/* SECTION 3: ROADMAP DEVOPS & GITHUB */}
         <SectionHeader id="devops" title="Futuro: Roadmap DevOps & Automação GitHub" icon={GitBranch} colorClass="text-purple-600 bg-purple-600" />
         {openSection === 'devops' && (
            <div className="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 space-y-6 animate-fade-in-down">
@@ -303,7 +303,7 @@ const GuidePanel: React.FC<GuidePanelProps> = ({ members, proposals }) => {
 
              <div className="flex gap-2 text-[10px] font-mono text-slate-400 bg-slate-100 dark:bg-slate-900/50 p-3 rounded border border-slate-200 dark:border-slate-700">
                 <span className="font-bold text-purple-600">Benefício:</span>
-                <span>Redução de erro humano, padronização de ambiente e deploys em < 2 minutos.</span>
+                <span>Redução de erro humano, padronização de ambiente e deploys em &lt; 2 minutos.</span>
              </div>
            </div>
         )}
