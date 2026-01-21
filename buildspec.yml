@@ -4,17 +4,22 @@ phases:
   install:
     runtime-versions:
       nodejs: 18
+    commands:
+      - echo "Instalando dependências..."
+      - npm install
   build:
     commands:
-      - echo "Iniciando o deploy do Portfolio..."
-      # Sincroniza os arquivos do GitHub com o seu Bucket S3
-      - aws s3 sync . s3://portfolio-cloud-edivaldo-v1 --delete --exclude ".git/*" --exclude "buildspec.yml"
+      - echo "Transformando TypeScript em JavaScript (Build)..."
+      - npm run build
   post_build:
     commands:
-      - echo "Limpando o cache do CloudFront para atualizar o site..."
-      # Substitua o ID abaixo pelo ID da sua distribuição (termina em I377)
+      - echo "Sincronizando a pasta de DISTRIBUIÇÃO com o S3..."
+      # IMPORTANTE: O comando agora aponta para a pasta 'dist' (ou 'build')
+      - aws s3 sync dist/ s3://portfolio-cloud-edivaldo-v1 --delete
+      - echo "Limpando cache do CloudFront..."
       - aws cloudfront create-invalidation --distribution-id E3NA5CGW54I377 --paths "/*"
 
 artifacts:
   files:
     - '**/*'
+  base-directory: dist
