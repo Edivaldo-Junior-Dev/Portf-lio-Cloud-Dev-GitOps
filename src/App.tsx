@@ -2,7 +2,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { INITIAL_VOTES, MEMBERS as DEFAULT_MEMBERS, PROPOSALS as DEFAULT_PROPOSALS, CORE_TEAM_IDS, TEAMS as DEFAULT_TEAMS } from './constants';
 import { Score, VotesState, Member, Proposal, User, Team } from './types';
-import { api } from './lib/api'; 
+import { api as localApi } from './lib/api'; // Mantendo a API antiga como fallback por enquanto
+import backendApi from './services/api'; // Importando a nova API do Axios (Checklist)
 import VotingForm from './components/VotingForm';
 import ResultsMatrix from './components/ResultsMatrix';
 import AIChatPanel from './components/AIChatPanel';
@@ -25,8 +26,10 @@ const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'vote' | 'results' | 'ai'>('vote');
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   
-  // State Global
+  // CHECKLIST ITEM 4: Preparar o Estado dos Projetos (Teams)
+  // Inicialmente usamos os DEFAULT_TEAMS, mas o useEffect abaixo vai tentar buscar da API real
   const [teams, setTeams] = useState<Team[]>(DEFAULT_TEAMS);
+  
   const [savedProfiles, setSavedProfiles] = useState<Member[]>([]);
   const [votes, setVotes] = useState<VotesState>(INITIAL_VOTES);
   
@@ -39,17 +42,41 @@ const App: React.FC = () => {
 
   // --- SINCRONIZAÇÃO COM BACKEND ---
 
+  // CHECKLIST: Função para buscar dados da API do Gabriel
+  const fetchProjectsFromBackend = async () => {
+    try {
+      // Verifica se a URL já foi configurada (não é mais o placeholder)
+      if (backendApi.defaults.baseURL && !backendApi.defaults.baseURL.includes('A_URL_QUE_O_GABRIEL')) {
+         const response = await backendApi.get('/projects'); // Ou '/teams', dependendo do que o Gabriel criar
+         if (response.data) {
+            console.log("Dados recebidos do Backend AWS:", response.data);
+            setTeams(response.data);
+            setSyncStatus('online');
+         }
+      }
+    } catch (error) {
+      console.warn("Ainda não foi possível conectar com a API do Gabriel (Backend AWS). Usando dados locais.");
+      // Não faz nada crítico, mantém os dados locais (fallback)
+    }
+  };
+
   const syncData = useCallback(async () => {
     if(!currentUser) return;
     try {
+        // Tenta buscar da API nova primeiro (Integração Futura)
+        fetchProjectsFromBackend();
+
+        // Continua com a lógica local existente para manter o app funcionando enquanto a API não vem
         const [remoteTeams, remoteProfiles, remoteVotes, remoteProposals, remoteMembers] = await Promise.all([
-            api.fetchData('teams'),
-            api.fetchData('profiles'),
-            api.fetchData('votes'),
-            api.fetchData('proposals'),
-            api.fetchData('members')
+            localApi.fetchData('teams'),
+            localApi.fetchData('profiles'),
+            localApi.fetchData('votes'),
+            localApi.fetchData('proposals'),
+            localApi.fetchData('members')
         ]);
 
+        // Se a API local (localStorage) tiver dados mais recentes que o default, usa eles
+        // Nota: Se a API do Gabriel responder, ela terá prioridade na próxima renderização
         if (remoteTeams) setTeams(remoteTeams);
         if (remoteProfiles) setSavedProfiles(remoteProfiles);
         if (remoteVotes) setVotes(remoteVotes);
@@ -65,8 +92,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if(currentUser) {
         syncData();
-        // Sync periódico desligado para evitar overwrites durante edição local intensa, 
-        // ou poderia ser reativado com lógica de merge.
     }
   }, [currentUser, syncData]);
 
@@ -75,19 +100,18 @@ const App: React.FC = () => {
   const handleSaveTeam = async (updatedTeam: Team) => {
       const newTeams = teams.map(t => t.id === updatedTeam.id ? updatedTeam : t);
       setTeams(newTeams); 
-      await api.saveData('teams', newTeams);
+      await localApi.saveData('teams', newTeams);
   };
 
   const handleSaveProfile = async (member: Member) => {
       const filtered = savedProfiles.filter(p => p.name !== member.name);
       const newProfiles = [...filtered, member];
       setSavedProfiles(newProfiles);
-      await api.saveData('profiles', newProfiles);
+      await localApi.saveData('profiles', newProfiles);
   };
 
   const handleVote = async (pid: string, cidx: number, score: Score) => {
     if (!currentUser) return;
-    // Usa o ID do usuário se estiver na lista de membros, senão visitor
     const memberId = activeMembers.find(m => currentUser.name.toLowerCase().includes(m.id))?.id || 'visitor';
     
     const newVotes = JSON.parse(JSON.stringify(votes));
@@ -96,15 +120,15 @@ const App: React.FC = () => {
     newVotes[memberId][pid][cidx] = score;
 
     setVotes(newVotes);
-    await api.saveData('votes', newVotes);
+    await localApi.saveData('votes', newVotes);
   };
 
   // --- HANDLERS DO CONFIG PANEL ---
-
+  // (Mantidos iguais ao original para brevidade, lógica de configuração local)
   const handleUpdateMember = async (id: string, name: string) => {
     const newMembers = activeMembers.map(m => m.id === id ? { ...m, name } : m);
     setActiveMembers(newMembers);
-    await api.saveData('members', newMembers);
+    await localApi.saveData('members', newMembers);
   };
 
   const handleAddMember = async () => {
@@ -116,14 +140,14 @@ const App: React.FC = () => {
     };
     const newMembers = [...activeMembers, newMember];
     setActiveMembers(newMembers);
-    await api.saveData('members', newMembers);
+    await localApi.saveData('members', newMembers);
   };
 
   const handleRemoveMember = async (id: string) => {
     if(window.confirm('Remover membro da votação?')) {
         const newMembers = activeMembers.filter(m => m.id !== id);
         setActiveMembers(newMembers);
-        await api.saveData('members', newMembers);
+        await localApi.saveData('members', newMembers);
     }
   };
 
@@ -140,7 +164,7 @@ const App: React.FC = () => {
         return p;
     });
     setActiveProposals(newProposals);
-    await api.saveData('proposals', newProposals);
+    await localApi.saveData('proposals', newProposals);
   };
 
   const handleAddProposal = async () => {
@@ -152,25 +176,25 @@ const App: React.FC = () => {
     };
     const newProposals = [...activeProposals, newProposal];
     setActiveProposals(newProposals);
-    await api.saveData('proposals', newProposals);
+    await localApi.saveData('proposals', newProposals);
   };
 
   const handleRemoveProposal = async (id: string) => {
     if(window.confirm('Excluir proposta e todos os votos associados?')) {
         const newProposals = activeProposals.filter(p => p.id !== id);
         setActiveProposals(newProposals);
-        await api.saveData('proposals', newProposals);
+        await localApi.saveData('proposals', newProposals);
     }
   };
 
   const handleImportData = async (data: any) => {
     if (data.members) {
         setActiveMembers(data.members);
-        await api.saveData('members', data.members);
+        await localApi.saveData('members', data.members);
     }
     if (data.proposals) {
         setActiveProposals(data.proposals);
-        await api.saveData('proposals', data.proposals);
+        await localApi.saveData('proposals', data.proposals);
     }
   };
 
@@ -178,8 +202,8 @@ const App: React.FC = () => {
     if(window.confirm('Restaurar configuração padrão? Isso apagará propostas personalizadas.')) {
         setActiveMembers(DEFAULT_MEMBERS);
         setActiveProposals(DEFAULT_PROPOSALS);
-        await api.saveData('members', DEFAULT_MEMBERS);
-        await api.saveData('proposals', DEFAULT_PROPOSALS);
+        await localApi.saveData('members', DEFAULT_MEMBERS);
+        await localApi.saveData('proposals', DEFAULT_PROPOSALS);
     }
   };
 
