@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Team, User } from '../types';
 import { Edit3, Users, Briefcase, BarChart3, Check, Loader2, ArrowRight, UserCheck, Zap } from 'lucide-react';
